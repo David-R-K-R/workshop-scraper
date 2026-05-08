@@ -77,7 +77,7 @@ async def fetch_rendered_html():
         await browser.close()
         return html
 
-html = await fetch_rendered_html()
+    html = await fetch_rendered_html()
 soup = BeautifulSoup(html, "html.parser")
 
 def starts_with_rated(text):
