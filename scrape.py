@@ -7,6 +7,11 @@ Original file is located at
     https://colab.research.google.com/drive/1Wo-btT46a2TrluDId83pCCNf7H8J4Jcu
 """
 
+import subprocess
+subprocess.run(["pip", "install", "playwright"], check=True)
+subprocess.run(["playwright", "install", "chromium"], check=True)
+subprocess.run(["playwright", "install-deps", "chromium"], check=True)
+
 import time
 import os
 import asyncio
