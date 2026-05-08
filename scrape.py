@@ -8,13 +8,14 @@ Original file is located at
 """
 
 import time
+import os
+import asyncio
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-# !pip install playwright
-# !playwright install chromium
-# !playwright install-deps chromium
-
+from supabase import create_client
+from datetime import datetime
+from playwright.async_api import async_playwright
 
 
 URL = "https://directory.goodonyou.eco/categories/fashion/suits"
@@ -23,40 +24,13 @@ HEADERS = {"User-Agent": "Mozilla/5.0"}
 LIMIT = 400
 SLEEP_SECONDS = 0
 
-# !pip -q install supabase
-
-from supabase import create_client
-from datetime import datetime
-
-
-import os
-
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_KEY"]
-
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 scrape_time = datetime.now().isoformat()
 
-rows = []
-for _, row in df.iterrows():
-    rows.append({
-        "name":         str(row["name"]),
-        "rating":        str(row["rating"]),
-        "country":       str(row["country"]),
-        "price_raw":       str(row["price_raw"]),
-        "category": str(row["category"]),
-        "price_level": int(row["price"]),
-        "rating_score":  int(row["rating_score"]),
-        "source_url":    str(row["source_url"]),
-        "scraped_at":    row["scraped_at"].isoformat(),
-    })
-# supabase.table("sustainabilityofsuits").delete().neq("name", "").execute()
-result = supabase.table("sustainabilityofsuits").insert(rows).execute()
-print(f"Inserted {len(rows)} rows into Supabase")
-
-from playwright.async_api import async_playwright
 
 async def fetch_rendered_html():
     async with async_playwright() as p:
@@ -77,14 +51,14 @@ async def fetch_rendered_html():
         await browser.close()
         return html
 
-    html = await fetch_rendered_html()
+
+html = asyncio.run(fetch_rendered_html())
 soup = BeautifulSoup(html, "html.parser")
+
 
 def starts_with_rated(text):
     return text and text.startswith("Rated")
 
-from datetime import datetime
-scrape_time = datetime.now().isoformat()
 
 records = []
 for link in soup.select('h5 a[href*="/brand/"]'):
@@ -117,8 +91,8 @@ for link in soup.select('h5 a[href*="/brand/"]'):
         "country": country,
         "price_raw": price_raw,
         "category": category,
-            "source_url": URL,
-    "scraped_at": pd.Timestamp.now(tz="UTC").isoformat(),
+        "source_url": URL,
+        "scraped_at": pd.Timestamp.now(tz="UTC").isoformat(),
     })
 
     if LIMIT and len(records) >= LIMIT:
@@ -128,10 +102,12 @@ for link in soup.select('h5 a[href*="/brand/"]'):
 
 df = pd.DataFrame(records)
 
+
 def price_to_number(price_raw):
     if not price_raw:
         return None
     return price_raw.count("$")
+
 
 df["price"] = df["price_raw"].apply(price_to_number)
 
@@ -143,10 +119,12 @@ RATING_SCORES = {
     "We avoid": 1,
 }
 
+
 def rating_to_score(rating):
     if not rating:
         return None
     return RATING_SCORES.get(rating)
+
 
 df["rating_score"] = df["rating"].apply(rating_to_score)
 
@@ -155,8 +133,22 @@ df["price"] = df["price"].astype(int)
 df["rating_score"] = df["rating_score"].astype(int)
 df["scraped_at"] = pd.to_datetime(df["scraped_at"])
 
-# Replace your existing df.to_csv() line with this:
-import os
+rows = []
+for _, row in df.iterrows():
+    rows.append({
+        "name":         str(row["name"]),
+        "rating":        str(row["rating"]),
+        "country":       str(row["country"]),
+        "price_raw":       str(row["price_raw"]),
+        "category": str(row["category"]),
+        "price_level": int(row["price"]),
+        "rating_score":  int(row["rating_score"]),
+        "source_url":    str(row["source_url"]),
+        "scraped_at":    row["scraped_at"].isoformat(),
+    })
+# supabase.table("sustainabilityofsuits").delete().neq("name", "").execute()
+result = supabase.table("sustainabilityofsuits").insert(rows).execute()
+print(f"Inserted {len(rows)} rows into Supabase")
 
 filename = "my_dataset.csv"
 
